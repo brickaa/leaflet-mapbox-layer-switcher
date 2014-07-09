@@ -8,128 +8,140 @@
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
     <script src='https://api.tiles.mapbox.com/mapbox.js/v1.6.1/mapbox.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox.js/v1.6.1/mapbox.css' rel='stylesheet' />
-
-    <style>
-      body { margin:0; padding:0; }
-      #map { position:absolute; top:0; bottom:0; width:75%; height:700px;}
-        .legend {
-            font-family: "HelveticaNeue-Light";
-        }
-         .legend .legend-title {
-            text-align: center;
-            margin-bottom: 3px;
-            font-weight: bold;
-            font-size: 90%;
-            }
-          .legend .legend-subtitle {
-            text-align: center;
-            margin-bottom: 5px;
-            font-weight: bold;
-            font-size: 70%;
-            }
-          .legend .legend-scale ul {
-            margin: 0;
-            margin-bottom: 5px;
-            padding: 0;
-            float: left;
-            list-style: none;
-            }
-          .legend .legend-scale ul li {
-            font-size: 80%;
-            list-style: none;
-            margin-left: 0;
-            line-height: 18px;
-            margin-bottom: 2px;
-            }
-          .legend ul.legend-labels li span {
-            display: block;
-            float: left;
-            height: 16px;
-            width: 30px;
-            margin-right: 5px;
-            margin-left: 0;
-            border: 1px solid #999;
-            }
-          .legend .legend-source {
-            font-size: 70%;
-            color: #999;
-            clear: both;
-            }
-          .legend a {
-            color: #777;
-            }
-    </style>
+    <link rel="stylesheet" type="text/css" href="style.css">
 
 </head>
 <body>
 <div>
+<!-- <select id="option-select">
+    <option value="twhp">Texas Women's Health Program</option>
+    <option value="ephc">Expanded Primary Health Care Program</option>
+</select>
+ -->
 
+          <select id="option-select" class="option-select">
+            <option value="ephc">Expanded Primary Health Care Program</option>
+            <option value="twhp">Texas Women's Health Program</option>
+            <option value="bccs">DSHS Breast and Cervical Cancer Screening Program</option>
+            <option value="fp">DSHS Family Planning Program</option>
+            <option value="tvpd">Title V - Prenatal Dental Services</option>
+            <option value="tvpm">Title V - Prenatal Medical Services</option>
+          </select>
  <div id='map'></div> 
 <!--  This <div> is your map. Put it in your html where you want the map to go. -->
+</div>
+    <script type="text/template" id="popup-template">
 
-<div id='legend-content' style='display: none;'>
-<div class='legend'>
-<div class='legend-title'>Oustanding Debt Per Capita</div>
-<div class='legend-subtitle'>Fiscal Year 2012</div>
-<div class='legend-scale'>
-  <ul class='legend-labels'>
-    <li><span style='background:#edf8fb;'></span>$0</li>
-    <li><span style='background:#b2e2e2;'></span>$1-$100</li>
-    <li><span style='background:#66c2a4;'></span>$101-$500</li>
-    <li><span style='background:#2ca25f;'></span>$501-$1,000</li>
-    <li><span style='background:#006d2c;'></span>>$1,000</li>
-  </ul>
-</div>
-<div class='legend-source'>Source: <a href="http://www.texastransparency.org/Data_Center/Search_Datasets.php">Texas Transparency</a></div>
-</div>
-</div>
-</div>
+    <div class="popup-container">
+      <header class="popup-name">
+        <h1>Providers: <%= PNTCNT %></h1>
+      </header>
+    </div>
 
+    </script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.1/underscore-min.js"></script>
 
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script>
-var geojson = [
-  {
-    "type": "Feature",
-    "geometry": {
-      "type": "Point",
-      "coordinates": [-97.75, 30.25]
-    },
-    "properties": {
-      "title": "Austin! Best City Ever",
-      "marker-color": "#fc4353",
-      "marker-size": "large",
-      "marker-symbol": "circle"
-    }
-  } 
-];
 
-//Add the background map layer
-// L.mapbox.map(element, id|url|tilejson, options)
-var map = L.mapbox.map('map', 'examples.map-9ijuk24y', {
-    minZoom: 5,
-    maxZoom: 10,
-    zoomControl: true
-}).setView([31.35, -99.64], 6);
-// Set the latitude and longitude of the map's starting view, and zoom level
+function prepareLayers(baseLayer, retinaBaseLayer, displayLayer) {
+  var layer = L.mapbox.tileLayer(baseLayer + ',' + displayLayer, {
+    detectRetina: true,
+    retinaVersion: retinaBaseLayer + ',' + displayLayer
+  });
 
-//Create Marker Layer
-map.markerLayer.setGeoJSON(geojson);
+  var gridLayer = L.mapbox.gridLayer(displayLayer);
 
-// Add your custom data layer on top
-var layer = L.mapbox.tileLayer('texastribune.FY2012_Counties_Debt', {
-    detectRetina: true
-}).addTo(map);
+  gridLayer.on('click', function(e) {
+      popup.setLatLng(e.latLng).setContent(popupTemplate(e.data)).openOn(map);
+  });
 
-// Add your legend
-map.legendControl.addLegend(document.getElementById('legend-content').innerHTML);
+  return L.layerGroup([layer, gridLayer]);
+}
 
-// Add interactive elements
-var gridlayer = L.mapbox.gridLayer('texastribune.FY2012_Counties_Debt');
-    //Create a gridlayer, set it to the 'map' id of your custom data layer
-map.addLayer(gridlayer);
-    //Append it to the map
-map.addControl(L.mapbox.gridControl(gridlayer, {follow: true}));
-    //Tell your map to add interactive controls from that gridlayer.
+var bgTiles = {
+  'normal': 'texastribune.map-f9zh0xcn',
+  'retina': 'texastribune.map-mwov7r6w'
+}
+
+var mapZoom = 6;
+var mapCenter = [31.35, -99.64];
+var popup = L.popup();
+var popupTemplate = _.template($('#popup-template').html());
+var $optionSelect = $('#option-select');
+
+var activeLayer;
+
+var width = $(window).width();
+
+if(width < 960) {
+  mapZoom = 5;
+}
+
+if(width < 480) {
+  mapZoom = 5;
+  mapCenter = [31.33, -99.56];
+}
+
+var map = L.mapbox.map('map', null, {
+  minZoom: 5,
+  maxZoom: 9
+});
+
+var bccs = prepareLayers(bgTiles['normal'], bgTiles['retina'], 'texastribune.WomensHealth-BCCS');
+var fp = prepareLayers(bgTiles['normal'], bgTiles['retina'], 'texastribune.WomensHealth-FP');
+var twhp = prepareLayers(bgTiles['normal'], bgTiles['retina'], 'texastribune.WomensHealth-TWHP');
+var tvpm = prepareLayers(bgTiles['normal'], bgTiles['retina'], 'texastribune.WomensHealth-TVPM');
+var ephc = prepareLayers(bgTiles['normal'], bgTiles['retina'], 'texastribune.WomensHealth-EPHC');
+var tvpd = prepareLayers(bgTiles['normal'], bgTiles['retina'], 'texastribune.WomensHealth-TVPD');
+
+map.setView(mapCenter, mapZoom);
+
+function findVal(activeMap) {
+  if(activeLayer) {
+    map.removeLayer(activeLayer);
+  }
+
+  if(activeMap === 'bccs') {
+    activeLayer = bccs;
+  }
+
+  if(activeMap === 'fp') {
+    activeLayer = fp;
+  }
+
+  if(activeMap === 'twhp') {
+    activeLayer = twhp;
+  }
+
+  if(activeMap === 'tvpm') {
+    activeLayer = tvpm;
+  }
+
+  if(activeMap === 'ephc') {
+    activeLayer = ephc;
+  }
+
+  if(activeMap === 'tvpd') {
+    activeLayer = tvpd;
+  }
+
+  map.addLayer(activeLayer);
+}
+
+$optionSelect.change(function() {
+  var val = this.value;
+  findVal(val);
+});
+
+
+$(document).ready(function() {
+  var val = $optionSelect.val();
+  findVal(val);
+});
+
+
+
 
 </script>
 
